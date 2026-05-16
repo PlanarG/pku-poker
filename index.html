@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>理想的灵柩 Boss Demo</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="game-shell">
+      <section class="top-bar">
+        <div class="title-block">
+          <h1>理想的灵柩</h1>
+          <p>Boss 战 Demo</p>
+        </div>
+        <div class="deck-strip">
+          <button id="restartBtn" class="small-button">重新开始</button>
+          <button id="drawPileBtn" class="pile" data-tip="抽牌堆。点击按字典序查看。">抽牌堆 <strong id="drawCount">0</strong></button>
+          <button id="discardPileBtn" class="pile" data-tip="弃牌堆。点击查看弃置顺序。">弃牌堆 <strong id="discardCount">0</strong></button>
+          <div class="pile" data-tip="消耗牌堆。消耗牌本场战斗不会再回来。">消耗 <strong id="exhaustCount">0</strong></div>
+        </div>
+      </section>
+
+      <section class="arena">
+        <div id="fxLayer" class="fx-layer" aria-hidden="true"></div>
+        <div class="combatant player-side">
+          <div id="playerFigure" class="figure player-figure" data-tip="玩家：80 点生命，初始 5 点精神值，精神上限 10。"></div>
+          <div class="nameplate">
+            <span>玩家</span>
+            <span id="playerHp">80 / 80</span>
+          </div>
+          <div class="bar hp-bar"><span id="playerHpBar"></span></div>
+          <div class="resource-line">
+            <span id="playerBlock" class="badge block" data-tip="防御会先抵消伤害，并在玩家回合开始时清零。">防御 0</span>
+            <span id="playerMental" class="badge spirit" data-tip="精神值上限 10，最低为 0。部分卡牌会消耗或回复精神值。">精神 10 / 10</span>
+          </div>
+          <div id="playerStatuses" class="status-list combat-status"></div>
+        </div>
+
+        <div class="center-space">
+          <div class="coffin-panel" data-tip="灵柩中的牌会离开玩家牌组。每张牌让 Boss 获得 20% 攻击加成。">
+            <div class="coffin-title">
+              <span>灵柩</span>
+              <strong id="coffinCount">0</strong>
+            </div>
+            <div id="coffinCards" class="coffin-cards"></div>
+          </div>
+          <div id="battleMessage" class="battle-message">点击手牌开始行动。</div>
+        </div>
+
+        <div class="combatant boss-side">
+          <div id="bossIntent" class="intent" data-tip="Boss 下一步行动意图。">?</div>
+          <div id="bossFigure" class="figure boss-figure" data-tip="理想的灵柩：血量低于一半后进入第二阶段「回响」。"></div>
+          <div class="nameplate">
+            <span id="bossName">理想的灵柩</span>
+            <span id="bossHp">200 / 200</span>
+          </div>
+          <div class="bar hp-bar boss-hp"><span id="bossHpBar"></span></div>
+          <div id="bossPhase" class="phase-label">阶段：封存</div>
+          <div id="bossStatuses" class="status-list combat-status"></div>
+        </div>
+      </section>
+
+      <section class="status-board">
+        <h2>战斗记录</h2>
+        <div id="log" class="log"></div>
+      </section>
+
+      <section class="hand-zone">
+        <div class="turn-controls">
+          <div>
+            <strong id="turnLabel">玩家回合 1</strong>
+            <span id="modeHint">请选择要打出的牌。</span>
+          </div>
+          <div class="action-buttons">
+            <button id="discardBtn" class="discard-button" hidden>弃牌</button>
+            <button id="endTurnBtn">结束回合</button>
+          </div>
+        </div>
+        <div id="hand" class="hand"></div>
+      </section>
+    </main>
+
+    <div id="tooltip" class="tooltip" hidden></div>
+    <div id="pileModal" class="modal" hidden>
+      <div class="modal-panel">
+        <div class="modal-header">
+          <h2 id="pileModalTitle">牌堆</h2>
+          <button id="pileModalClose" class="icon-button" aria-label="关闭">×</button>
+        </div>
+        <div id="pileModalBody" class="pile-list"></div>
+      </div>
+    </div>
+    <script type="module" src="game.js"></script>
+  </body>
+</html>
