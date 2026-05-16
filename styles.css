@@ -667,6 +667,15 @@ button.pile:hover {
   border-left: 4px solid #5d7d4c;
 }
 
+.pile-row.selectable {
+  cursor: pointer;
+  outline: 1px solid rgba(98, 168, 255, 0.28);
+}
+
+.pile-row.selectable:hover {
+  background: rgba(98, 168, 255, 0.14);
+}
+
 .pile-row small {
   color: var(--muted);
 }

@@ -47,6 +47,7 @@ export function createRenderer(els, deps) {
     if (state.gameOver) return "可以重新开始。";
     if (state.mode === "discardForInsight") return `洞见增抽：选择 ${state.pendingDiscard} 张牌后点击弃牌。`;
     if (state.mode === "discardForRetreat") return "以退为进：选择 1 张手牌后点击弃牌。";
+    if (state.mode === "discardToDrawTop") return "博雅塔前您博雅：在弃牌堆中选择 1 张非攻击牌置入抽牌堆顶。";
     if (state.mode === "retrieveCall") return "呼唤：选择 1 张灵柩中的牌取回。";
     if (state.mode === "retrieveEnd") return "未攻击回合奖励：选择 1 张灵柩牌取回，或跳过。";
     return "请选择要打出的牌。";
@@ -166,6 +167,7 @@ export function createRenderer(els, deps) {
     if (p.twistRedo) items.push(statusItem("扭曲（重修）", p.twistRedo, "下回合开始少抽 2 张，生效后减少。"));
     if (p.twistTorment) items.push(statusItem("扭曲（煎熬）", p.twistTorment, "下回合每次获得防御时失去 1 精神，回合结束后减少。"));
     if (p.bossNegated) items.push(statusItem("暂", "", "本次 Boss 行动的伤害和效果无效。"));
+    if (p.summer) items.push(statusItem("暑假", "", "持续至回合结束。本回合不能再打出攻击牌。"));
     if (p.attackLocked) items.push(statusItem("禁止攻击", "", "本回合不能再打出攻击牌。"));
     return items;
   }
@@ -192,7 +194,7 @@ export function createRenderer(els, deps) {
     });
   }
 
-  function openPileModal(title, cards, emptyText) {
+  function openPileModal(title, cards, emptyText, options = {}) {
     els.pileModalTitle.textContent = title;
     els.pileModalBody.innerHTML = "";
     if (cards.length === 0) {
@@ -205,6 +207,10 @@ export function createRenderer(els, deps) {
         const def = deps.cardDef(card);
         const row = document.createElement("div");
         row.className = `pile-row ${def.type}`;
+        if (options.discardToDrawTop && def.type !== "attack") {
+          row.classList.add("selectable");
+          row.dataset.discardIndex = String(index);
+        }
         row.dataset.tip = def.text;
         row.innerHTML = `<span>${index + 1}. ${def.name}</span><small>${TYPE_LABELS[def.type]}</small>`;
         els.pileModalBody.appendChild(row);

@@ -31,6 +31,7 @@ Initial deck:
 - 1x 重修
 - 2x 煎熬
 - 2x 休整
+- 2x 弯道超车
 
 ## General Card Rules
 
@@ -44,6 +45,8 @@ Initial deck:
   - Block accounts for dexterity and conditional block.
   - Mental gain accounts for current mental, max mental, current cost, and Hollow.
 - If a skill is blocked by 扭曲（暂）, its effect is negated after paying cost, and the card still goes to its normal destination.
+- 暑假 is a player turn state. It lasts until the player ends the turn and prevents playing more attack cards.
+- Each player-turn mental recovery event that actually increases mental reduces 暂's current cost by 1 for that turn.
 
 ## Player Cards
 
@@ -60,31 +63,32 @@ Initial deck:
 
 - Type: attack.
 - Cost: 0.
-- Deals 7 damage.
-- If current mental is at least 5 after paying cost, deals another 7 damage and applies 1 vulnerable to Boss.
+- Deals 5 damage.
+- If current mental is at least 5 after paying cost, deals another 5 damage.
 
 ### 好言相劝
 
 - Type: attack.
-- Cost: 0.
-- Deals 5 damage.
+- Cost: 1.
+- Deals 7 damage.
 - Gain 5 block.
 - Gain 1 strength.
 
 ### 暂
 
 - Type: skill.
-- Cost: 8.
-- Exhausts.
+- Base cost: 6.
+- Current cost is reduced by 1 for each mental recovery event this player turn.
 - Negates the next Boss action this turn, including Boss damage and effects.
 - Can negate 回响转化 damage/status effects if active when the Boss action resolves.
 
 ### 1/10
 
-- Type: skill.
+- Type: attack.
 - Cost: 1.
+- Deals 5 damage.
 - Applies 1 gaze to Boss.
-- Adds one 循证 to draw pile.
+- Adds two 循证 to draw pile.
 - When Boss gaze reaches 10, Boss immediately takes 50 unblockable damage and gaze is reduced by 10.
 
 ### 循证
@@ -99,7 +103,7 @@ Initial deck:
 
 - Type: skill.
 - Cost: 0.
-- Innate, retain, exhaust.
+- Retain, exhaust.
 - For every 2 current mental, gain 1 random buff layer.
 - Each layer randomly gives one of:
   - Strength +1.
@@ -118,16 +122,17 @@ Initial deck:
 
 - Type: skill.
 - Cost: 0.
-- Can only be played if no attack has been played this turn.
-- After being played, attacks cannot be played for the rest of this turn.
-- At end of turn, gain 4 mental.
+- Gain 5 block.
+- During 暑假:
+  - Gain 3 mental.
+  - Choose 1 non-attack card from discard pile and put it on top of draw pile.
 
 ### 反省
 
 - Type: skill.
 - Cost: 0.
 - Draw 3.
-- If no attack has been played this turn, draw 1 additional card.
+- During 暑假, draw 1 additional card.
 
 ### 以退为进
 
@@ -147,17 +152,15 @@ Initial deck:
 ### 煎熬
 
 - Type: defense.
-- Cost: 0.
+- Cost: 1.
 - Gain 10 block.
-- Lose 1 mental.
-- This mental loss is recorded for Boss second-phase twist selection, but it is not double-counted as a card cost.
 
 ### 休整
 
 - Type: defense.
 - Cost: 0.
-- Gain 5 block.
-- If no attack has been played this turn, gain 5 additional block.
+- Gain 6 block.
+- During 暑假, gain 6 additional block.
 
 ### 呼唤
 
@@ -167,8 +170,18 @@ Initial deck:
 - During the "Boss intends to transform" window, before 回响转化 actually resolves, 呼唤 remains first-phase behavior.
 - After Boss actually finishes 回响转化, 呼唤 changes:
   - Cost becomes 0.
-  - Effect becomes gain 2 mental.
+  - Effect becomes gain 1 mental.
 - The card display only shows the currently active effect.
+
+### 弯道超车
+
+- Type: skill.
+- Cost: 0.
+- Retain.
+- Gain 1 mental.
+- Enter 暑假.
+- 暑假 lasts until player end turn.
+- While in 暑假, attacks cannot be played.
 
 ## Mental Gain And Loss
 
@@ -181,12 +194,12 @@ Initial deck:
 - Mental gain sources currently include:
   - 3.92 conditional gain 2.
   - 深呼吸 gain 1.
-  - 博雅塔前您博雅 end-turn gain 4.
+  - 博雅塔前您博雅 gain 3 during 暑假.
+  - 弯道超车 gain 1.
   - 以退为进 gain 1 when discarding an attack.
-  - 呼唤 second-phase gain 2.
+  - 呼唤 second-phase gain 1.
 - Mental loss sources currently include:
   - Card costs.
-  - 煎熬 loses 1 mental.
   - 茫然 loses 2 mental per layer at end of turn.
   - 扭曲（煎熬） loses 1 mental each time player gains block during its active turn.
 
@@ -258,7 +271,7 @@ Resolved as the next Boss action after phase threshold is crossed.
 - For each card in coffin, deal 10 damage to player.
 - Apply 1 Muddled to player.
 - Remove all Hollow from player.
-- After this action resolves, 呼唤 becomes 0-cost gain 2 mental.
+- After this action resolves, 呼唤 becomes 0-cost gain 1 mental.
 - If player has 暂 active, the transform's damage and Muddled application are negated, but 呼唤 still changes after the transform action.
 
 ## Boss Phase 2: 回响
@@ -270,10 +283,10 @@ Each Boss action:
 
 Twist-eligible cards:
 
-- 暂: cost 8.
+- 暂: current paid cost, base 6 and reduced by this-turn mental recovery events.
 - 1/10: cost 1.
 - 重修: cost 1.
-- 煎熬: recorded as 1 due to its mental loss.
+- 煎熬: cost 1.
 
 If no twist-eligible card has been recorded, Boss releases no twist effect.
 
@@ -314,7 +327,7 @@ If no twist-eligible card has been recorded, Boss releases no twist effect.
 
 1. Increment turn.
 2. Clear block.
-3. Clear per-turn attack count and attack lock.
+3. Clear per-turn attack count, attack lock, 暑假, and mental recovery count.
 4. Set active 扭曲（煎熬） flag if player has layers.
 5. Calculate draw count:
    - Base 5.
@@ -330,13 +343,14 @@ If no twist-eligible card has been recorded, Boss releases no twist effect.
 - Discard choices are selected first, then confirmed with the discard button.
 - Some actions enter selection mode:
   - 以退为进: select 1 hand card to discard.
+  - 博雅塔前您博雅 during 暑假: select 1 non-attack discard pile card and put it on top of draw pile.
   - 呼唤 phase 1: select 1 coffin card to retrieve.
   - No-attack end-of-turn reward: optionally select 1 coffin card to retrieve.
 
 ### Player End Turn
 
 1. If eligible for no-attack coffin retrieval, offer retrieval before ending.
-2. Resolve 博雅塔前您博雅 mental gain.
+2. Clear 暑假 and attack lock.
 3. Resolve 茫然 mental loss.
 4. Resolve 扭曲（1/10） damage.
 5. Resolve end of active 扭曲（煎熬） turn.

@@ -44,7 +44,8 @@ function startPlayerTurn() {
   state.player.block = 0;
   state.player.attacksThisTurn = 0;
   state.player.attackLocked = false;
-  state.player.boyaRecover = 0;
+  state.player.summer = false;
+  state.player.mentalRecoveriesThisTurn = 0;
   state.player.twistTormentActive = state.player.twistTorment > 0;
 
   let drawCount = PLAYER_CONFIG.baseDraw + state.player.drawDiscard - state.player.nextDrawPenalty;
@@ -87,10 +88,11 @@ function drawCards(count) {
 }
 
 function gainMental(amount) {
+  const before = state.player.mental;
   let gain = Math.min(amount, state.player.maxMental - state.player.mental);
   if (gain <= 0) {
     addLog("精神值已满，没有获得精神。");
-    return;
+    return 0;
   }
   while (gain > 0 && state.player.hollow > 0) {
     state.player.hollow -= 1;
@@ -101,6 +103,9 @@ function gainMental(amount) {
   if (gain > 0) {
     state.player.mental = Math.min(state.player.maxMental, state.player.mental + gain);
   }
+  const actualGain = state.player.mental - before;
+  if (actualGain > 0) state.player.mentalRecoveriesThisTurn += 1;
+  return actualGain;
 }
 
 function loseMental(amount) {
@@ -212,7 +217,6 @@ function playableReason(card) {
   if (state.player.mental < cardCost(card)) return "精神值不足。";
   if (def.type === "attack" && state.player.attackLocked) return "本回合已被限制不能再打出攻击牌。";
   if (card.key === "3.92" && state.player.mental >= 5) return "精神值低于 5 时才能打出。";
-  if (card.key === "boya" && state.player.attacksThisTurn > 0) return "本回合打出过攻击牌，不能打出。";
   return "";
 }
 
@@ -223,12 +227,13 @@ function cardText(card) {
   if (def.type === "attack") {
     const damageMap = {
       "3.92": [0],
-      talk: state.player.mental >= 5 ? [7, 7] : [7],
-      persuade: [5],
+      talk: state.player.mental >= 5 ? [5, 5] : [5],
+      persuade: [7],
+      oneTen: [5],
     };
     const damages = damageMap[card.key];
     let damageSegment = 0;
-    text = text.replace(/(\d+)( 点伤害)/g, (match, number, suffix) => {
+    text = text.replace(/(\d+)( 点(?:基础)?伤害)/g, (match, number, suffix) => {
       const base = Number(number);
       if (!damages || damageSegment >= damages.length || base !== damages[damageSegment]) return match;
       const actual = actualAttackDamage(base, card);
@@ -255,11 +260,12 @@ function cardText(card) {
 }
 
 function currentCallText() {
-  return isCallRestoring() ? "回复 2 点精神。" : "取回一张灵柩中的牌。";
+  return isCallRestoring() ? "回复 1 精神。" : "从灵柩中取回 1 张牌。";
 }
 
 function cardCost(card) {
   if (card.key === "call" && isCallRestoring()) return 0;
+  if (card.key === "pause") return Math.max(0, cardDef(card).cost - state.player.mentalRecoveriesThisTurn);
   return cardDef(card).cost;
 }
 
@@ -277,13 +283,14 @@ function actualAttackDamage(base, card = null) {
 }
 
 function actualBlockGain(card, base, segment) {
-  if (card.key === "rest" && segment === 1 && state.player.attacksThisTurn > 0) return 0;
+  if (card.key === "rest" && segment === 1 && !state.player.summer) return 0;
   return Math.max(0, base + state.player.dexterity);
 }
 
 function actualMentalGain(card, base) {
   if (card.key === "3.92" && actualAttackDamage(0, card) <= 5) return 0;
   if (card.key === "call" && !isCallRestoring()) return 0;
+  if (card.key === "boya" && !state.player.summer) return 0;
 
   const mentalAfterCost = Math.max(0, state.player.mental - cardCost(card));
   const possibleGain = Math.min(base, state.player.maxMental - mentalAfterCost);
@@ -306,7 +313,6 @@ function playCard(cardId, sourceElement = null) {
   effects.flashPlayedCard(sourceElement);
   state.hand.splice(index, 1);
   spendMental(card.key, cardCost(card));
-  let extraSpend = 0;
   const destination = def.exhaust ? state.exhaustPile : state.discardPile;
 
   if (state.player.twistTemp > 0 && def.type === "skill") {
@@ -329,16 +335,14 @@ function playCard(cardId, sourceElement = null) {
       break;
     }
     case "talk": {
-      dealBossDamage(7, "【谈笑风生】");
+      dealBossDamage(5, "【谈笑风生】");
       if (state.player.mental >= 5 && state.boss.hp > 0) {
-        dealBossDamage(7, "【谈笑风生】追加");
-        state.boss.vulnerable += 1;
-        addLog("Boss 获得 1 层【易伤】。");
+        dealBossDamage(5, "【谈笑风生】追加");
       }
       break;
     }
     case "persuade":
-      dealBossDamage(5, "【好言相劝】");
+      dealBossDamage(7, "【好言相劝】");
       gainBlock(5);
       state.player.strength += 1;
       addLog("【好言相劝】使玩家获得 1 层【力量】。");
@@ -348,9 +352,11 @@ function playCard(cardId, sourceElement = null) {
       addLog("【暂】将无效化本回合 Boss 的伤害和效果。");
       break;
     case "oneTen":
+      dealBossDamage(5, "【1/10】");
       state.boss.gaze += 1;
       state.drawPile.push(makeCard("evidence"));
-      addLog("Boss 获得 1 层【注视】，一张【循证】加入抽牌堆。");
+      state.drawPile.push(makeCard("evidence"));
+      addLog("Boss 获得 1 层【注视】，2 张【循证】加入抽牌堆。");
       checkGaze();
       break;
     case "evidence":
@@ -388,12 +394,20 @@ function playCard(cardId, sourceElement = null) {
       addLog("【深呼吸】回复精神，下回合抽牌 -1。");
       break;
     case "boya":
-      state.player.attackLocked = true;
-      state.player.boyaRecover += 4;
-      addLog("本回合不能再打出攻击牌，回合结束回复 4 精神。");
+      gainBlock(5);
+      if (state.player.summer) {
+        gainMental(3);
+        if (state.discardPile.some((discardedCard) => cardDef(discardedCard).type !== "attack")) {
+          state.mode = "discardToDrawTop";
+          setMessage("请选择 1 张弃牌堆中的非攻击牌置入抽牌堆顶。");
+          renderer.openPileModal("选择置入抽牌堆顶", state.discardPile, "弃牌堆为空。", { discardToDrawTop: true });
+        } else {
+          addLog("弃牌堆中没有可置入抽牌堆顶的非攻击牌。");
+        }
+      }
       break;
     case "reflect":
-      drawCards(state.player.attacksThisTurn === 0 ? 4 : 3);
+      drawCards(state.player.summer ? 4 : 3);
       addLog("【反省】抽牌。");
       break;
     case "retreat":
@@ -419,17 +433,16 @@ function playCard(cardId, sourceElement = null) {
     }
     case "torment":
       gainBlock(10);
-      loseMental(1);
-      extraSpend = 1;
-      addLog("【煎熬】获得防御并失去 1 点精神。");
+      addLog("【煎熬】获得防御。");
       break;
     case "rest":
-      gainBlock(state.player.attacksThisTurn === 0 ? 10 : 5);
+      gainBlock(6);
+      if (state.player.summer) gainBlock(6);
       break;
     case "call":
       if (isCallRestoring()) {
-        gainMental(2);
-        addLog("【呼唤】在回响中转为回复 2 点精神。");
+        gainMental(1);
+        addLog("【呼唤】在回响中转为回复 1 点精神。");
       } else if (state.coffin.length > 0 && state.boss.phase === 1) {
         state.mode = "retrieveCall";
         setMessage("请选择 1 张灵柩中的牌取回。");
@@ -437,11 +450,16 @@ function playCard(cardId, sourceElement = null) {
         addLog("【呼唤】没有可取回的牌。");
       }
       break;
+    case "overtake":
+      gainMental(1);
+      state.player.summer = true;
+      state.player.attackLocked = true;
+      addLog("【弯道超车】回复精神并进入【暑假】，本回合不能再打出攻击牌。");
+      break;
     default:
       break;
   }
 
-  if (extraSpend > 0) recordMentalSpend(card.key, extraSpend);
   destination.push(card);
   if (!state.mode) setMessage(`打出了【${def.name}】。`);
   render();
@@ -507,6 +525,25 @@ function confirmDiscardSelection() {
   render();
 }
 
+function chooseDiscardToDrawTop(discardIndex) {
+  if (state.mode !== "discardToDrawTop") return;
+  const card = state.discardPile[discardIndex];
+  if (!card) return;
+  const def = cardDef(card);
+  if (def.type === "attack") {
+    setMessage("只能选择非攻击牌。");
+    render();
+    return;
+  }
+  state.discardPile.splice(discardIndex, 1);
+  state.drawPile.push(card);
+  state.mode = null;
+  renderer.closePileModal();
+  addLog(`【${def.name}】置入抽牌堆顶。`);
+  setMessage("已将弃牌置入抽牌堆顶，可以继续行动。");
+  render();
+}
+
 function retrieveCoffinCard(cardId, toHand = true) {
   const index = state.coffin.findIndex((card) => card.id === cardId);
   if (index < 0) return;
@@ -549,10 +586,8 @@ function requestEndTurn() {
 }
 
 function finishTurnAfterRetrieve() {
-  if (state.player.boyaRecover > 0) {
-    gainMental(state.player.boyaRecover);
-    addLog("【博雅塔前您博雅】在回合结束回复精神。");
-  }
+  state.player.summer = false;
+  state.player.attackLocked = false;
   if (state.player.muddled > 0) {
     loseMental(state.player.muddled * 2);
     addLog(`【茫然】扣除 ${state.player.muddled * 2} 点精神。`);
@@ -665,7 +700,7 @@ function finishEchoTransition(applyPlayerEffects) {
     addLog("【回响转化】被无效化，伤害和【茫然】没有生效。");
   }
 
-  addLog("【呼唤】改为回复 2 点精神。");
+  addLog("【呼唤】改为回复 1 点精神。");
 }
 
 function releaseTwist() {
@@ -705,7 +740,7 @@ function bossIntent() {
     return {
       damage: state.coffin.length * 10,
       statuses: ["茫然 1", "移除空洞"],
-      tip: "回响转化：Boss 回合行动。灵柩中每有一张牌对玩家造成 10 点伤害，给予 1 层【茫然】，移除【空洞】，之后【呼唤】变为回复 2 精神。",
+      tip: "回响转化：Boss 回合行动。灵柩中每有一张牌对玩家造成 10 点伤害，给予 1 层【茫然】，移除【空洞】，之后【呼唤】变为回复 1 精神。",
     };
   }
 
@@ -723,7 +758,12 @@ function openDrawPile() {
 }
 
 function openDiscardPile() {
-  renderer.openPileModal("弃牌堆：弃置顺序", state.discardPile, "弃牌堆为空。");
+  renderer.openPileModal(
+    state.mode === "discardToDrawTop" ? "选择置入抽牌堆顶" : "弃牌堆：弃置顺序",
+    state.discardPile,
+    "弃牌堆为空。",
+    { discardToDrawTop: state.mode === "discardToDrawTop" },
+  );
 }
 
 els.hand.addEventListener("click", (event) => {
@@ -751,6 +791,11 @@ els.drawPileBtn.addEventListener("click", openDrawPile);
 els.discardPileBtn.addEventListener("click", openDiscardPile);
 els.pileModalClose.addEventListener("click", renderer.closePileModal);
 els.pileModal.addEventListener("click", (event) => {
+  const discardRow = event.target.closest("[data-discard-index]");
+  if (discardRow) {
+    chooseDiscardToDrawTop(Number(discardRow.dataset.discardIndex));
+    return;
+  }
   if (event.target === els.pileModal) renderer.closePileModal();
 });
 
